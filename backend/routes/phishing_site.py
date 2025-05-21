@@ -8,6 +8,10 @@ import os
 import tempfile
 import werkzeug
 from modules import phishing_site
+import subprocess
+
+APACHE_CONF_PATH = "/etc/apache2/sites-available/000-default.conf"
+DEFAULT_DOCROOT = "/var/www/html"
 
 # Create blueprint
 phishing_bp = Blueprint('phishing', __name__)
@@ -111,13 +115,6 @@ def list_phishing_files():
     return jsonify({ "status": "success", "files": files })
 
 
-import os
-from flask import request, jsonify
-from . import phishing_bp
-
-APACHE_CONF_PATH = "/etc/apache2/sites-available/000-default.conf"
-DEFAULT_DOCROOT = "/var/www/html"
-
 @phishing_bp.route('/deletefile', methods=['POST'])
 def delete_phishing_file():
     data = request.json
@@ -137,10 +134,10 @@ def delete_phishing_file():
     try:
         os.remove(file_path)
 
-        # Check if the directory is now empty
-        if not os.listdir(domain_path):  # Folder is empty
+        # Check if folder is empty
+        if not os.listdir(domain_path):
             try:
-                # Roll back DocumentRoot in Apache config
+                # Roll back Apache DocumentRoot
                 with open(APACHE_CONF_PATH, 'r') as file:
                     lines = file.readlines()
 
@@ -151,14 +148,24 @@ def delete_phishing_file():
                         else:
                             file.write(line)
 
-                return jsonify({
-                    "status": "success",
-                    "message": f"{file_name} deleted. Directory was empty, Apache DocumentRoot rolled back."
-                })
+                # Restart Apache
+                restart_status = subprocess.call(["systemctl", "restart", "apache2"])
+
+                if restart_status == 0:
+                    return jsonify({
+                        "status": "success",
+                        "message": f"{file_name} deleted. Directory was empty. Apache rolled back and restarted."
+                    })
+                else:
+                    return jsonify({
+                        "status": "partial",
+                        "message": f"{file_name} deleted, rollback done, but failed to restart Apache"
+                    }), 500
+
             except Exception as e:
                 return jsonify({
                     "status": "partial",
-                    "message": f"{file_name} deleted, but failed to roll back Apache config: {str(e)}"
+                    "message": f"{file_name} deleted, but rollback failed: {str(e)}"
                 }), 500
 
         return jsonify({"status": "success", "message": f"{file_name} deleted"})

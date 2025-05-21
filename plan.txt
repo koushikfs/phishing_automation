@@ -1,0 +1,27 @@
+PLAN
+
+├── setup_domain.py - add records to DNS and host sample index.html
+├── phishing_site_setup.py - clone the user given login page and send creds to the server action.php which will log the credentials
+├── start_evilginx.py - alternate option, launch evilgnix server, upload or use already present phishlet. add records to cloudflare and get lure URL as output
+├── watch_and_extract.py - fetch credendials from evilginx data.db / from /var/www/html/ and display the username password.
+├── setup_gophish.py - input emails list, sendgrid username and API key, automate landing page, email template and send test email.
+├── create_gophish_campaign.py - create gophish campaign and launch or schedule the start date.
+├── fetch_gophish_events.py - fetch the events
+├── log_credentials.py - get credentials from the cloned page or evilgnix and match with the gophish events.
+├── report_summary.py - fetch data of , users who opened, user who clicked and users who gave credentials.
+
+
+
+
+
+
+
+
+lets go one by one, so the flow is 
+1. provide domain
+2. select either upload phishing website files or evilginx setup.
+3. if Generic phishing setup is selected then we do normal setup where we unzip the files and send to /var/www/html 
+4. If evilginx is selected, then we do evilginx setup.
+5. Provide Lure URL and watch for credentials either its from evilginx or generic phishing setup.
+
+flow is completed

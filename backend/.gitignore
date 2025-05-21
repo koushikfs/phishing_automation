@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.env
+*.env
+
+# VS Code
+.vscode/
+
+# Logs and temp files
+*.log
+*.bak
+*.tmp
+*.swp
+
+# JSON state or config files
+evilginx-data/*.json
+
+# Bytecode or compiled files
+*.so
+*.out
+*.o
+
+# Virtual environments
+venv/
+env/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# WSL-specific cache
+.wsl*
+
+# Coverage or test outputs
+htmlcov/
+coverage.xml
+*.cover

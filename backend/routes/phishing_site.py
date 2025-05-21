@@ -111,6 +111,13 @@ def list_phishing_files():
     return jsonify({ "status": "success", "files": files })
 
 
+import os
+from flask import request, jsonify
+from . import phishing_bp
+
+APACHE_CONF_PATH = "/etc/apache2/sites-available/000-default.conf"
+DEFAULT_DOCROOT = "/var/www/html"
+
 @phishing_bp.route('/deletefile', methods=['POST'])
 def delete_phishing_file():
     data = request.json
@@ -121,16 +128,44 @@ def delete_phishing_file():
         return jsonify({"status": "error", "message": "Missing data"}), 400
 
     domain_slug = domain_name.replace(".", "_")
-    file_path = os.path.join("/var/www/html", domain_slug, file_name)
+    domain_path = os.path.join(DEFAULT_DOCROOT, domain_slug)
+    file_path = os.path.join(domain_path, file_name)
 
     if not os.path.exists(file_path):
         return jsonify({"status": "error", "message": "File not found"}), 404
 
     try:
         os.remove(file_path)
+
+        # Check if the directory is now empty
+        if not os.listdir(domain_path):  # Folder is empty
+            try:
+                # Roll back DocumentRoot in Apache config
+                with open(APACHE_CONF_PATH, 'r') as file:
+                    lines = file.readlines()
+
+                with open(APACHE_CONF_PATH, 'w') as file:
+                    for line in lines:
+                        if line.strip().startswith("DocumentRoot"):
+                            file.write(f"    DocumentRoot {DEFAULT_DOCROOT}\n")
+                        else:
+                            file.write(line)
+
+                return jsonify({
+                    "status": "success",
+                    "message": f"{file_name} deleted. Directory was empty, Apache DocumentRoot rolled back."
+                })
+            except Exception as e:
+                return jsonify({
+                    "status": "partial",
+                    "message": f"{file_name} deleted, but failed to roll back Apache config: {str(e)}"
+                }), 500
+
         return jsonify({"status": "success", "message": f"{file_name} deleted"})
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 
     

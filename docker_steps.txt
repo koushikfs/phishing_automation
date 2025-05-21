@@ -1,0 +1,18 @@
+machine - Ubuntu 24.04 (LTS) x64
+
+apt update
+apt upgrade -y
+apt install golang-go -y
+apt install python3-pip -y
+apt install python3.12-venv -y
+apt install php8.3-cli
+apt install npm -y
+git clone https://github.com/koushikfs/phishing_automation.git
+cd ~/phishing_automation/frontend/
+npm install
+cd ~/phishing_automation/backend/
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+python3 app.py

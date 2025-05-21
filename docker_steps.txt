@@ -6,6 +6,7 @@ apt install golang-go -y
 apt install python3-pip -y
 apt install python3.12-venv -y
 apt install php8.3-cli
+sudo apt install php libapache2-mod-php -y
 apt install npm -y
 git clone https://github.com/koushikfs/phishing_automation.git
 cd ~/phishing_automation/frontend/

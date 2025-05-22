@@ -1,19 +1,27 @@
 machine - Ubuntu 24.04 (LTS) x64
 
+
+sudo systemctl disable systemd-resolved
+sudo systemctl stop systemd-resolved
+sudo rm /etc/resolv.conf
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+sudo chattr +i /etc/resolv.conf
 apt update
 apt upgrade -y
 apt install golang-go -y
 apt install python3-pip -y
 apt install python3.12-venv -y
 apt install php8.3-cli
+apt install -y git make gcc libpcap-dev
 sudo apt install php libapache2-mod-php -y
 apt install npm -y
 git clone https://github.com/koushikfs/phishing_automation.git
 cd ~/phishing_automation/frontend/
 npm install
+nohup npm start > output.log 2>&1 &
 cd ~/phishing_automation/backend/
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-python3 app.py
+nohup python3 app.py > output.log 2>&1 &

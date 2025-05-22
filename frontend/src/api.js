@@ -46,7 +46,8 @@ export const API_ENDPOINTS = {
     clear: `${API_BASE}/api/credentials/clear`,
     monitors: `${API_BASE}/api/credentials/monitors`,
     activate: `${API_BASE}/api/credentials/activate`,
-    extract: `${API_BASE}/api/credentials/extract`
+    extract: `${API_BASE}/api/credentials/extract`,
+    reload: `${API_BASE}/api/credentials/reload`
   }
 };
 

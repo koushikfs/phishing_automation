@@ -122,7 +122,7 @@ def copy_to_var_www(local_path, target_folder_name):
         }
 
 def update_apache_config(new_docroot):
-    """Update Apache configuration with clean URLs, file restrictions, and enable rewrite module."""
+    """Update Apache config for clean URLs, file protection, PHP support, and restart Apache."""
     php_version = get_php_version()
 
     if not php_version:
@@ -132,11 +132,11 @@ def update_apache_config(new_docroot):
         }
 
     try:
-        # Read existing config
+        # Read current Apache config
         with open(APACHE_CONF_PATH, 'r') as file:
             lines = file.readlines()
 
-        # Update DocumentRoot
+        # Replace DocumentRoot
         with open(APACHE_CONF_PATH, 'w') as file:
             for line in lines:
                 if line.strip().startswith("DocumentRoot"):
@@ -144,51 +144,60 @@ def update_apache_config(new_docroot):
                 else:
                     file.write(line)
 
-        # Config blocks
-        extra_config = f"""
+        # Add PHP, security, clean URL, and Directory block
+        php_block = f"""
 <IfModule php{php_version}_module>
     AddType application/x-httpd-php .php
     AddHandler application/x-httpd-php .php
     DirectoryIndex index.php index.html
 </IfModule>
+"""
 
+        directory_block = f"""
 <Directory {new_docroot}>
     Options Indexes FollowSymLinks
     AllowOverride All
     Require all granted
 
-    <FilesMatch "\\.(json|txt|env|log|cfg|ini|bak|old|sql)$">
+    <FilesMatch "^(?!robots\\.txt$).*(\\.json|\\.txt|\\.env|\\.log|\\.cfg|\\.ini|\\.bak|\\.old|\\.sql)$">
         Require all denied
     </FilesMatch>
 </Directory>
 """
 
-        rewrite_rules = """
+        rewrite_block = """
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Rewrite clean URLs to .html files if they exist
+    RewriteCond %{REQUEST_FILENAME}.html -f
+    RewriteRule ^([^/]+)/?$ $1.html [L]
+
+    # Fallback to index.php
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ /index.php [L]
 </IfModule>
 """
 
-        # Append if not already there
         with open(APACHE_CONF_PATH, 'r') as file:
             content = file.read()
 
         with open(APACHE_CONF_PATH, 'a') as file:
             if f"<IfModule php{php_version}_module>" not in content:
-                file.write(extra_config)
+                file.write(php_block)
+            if f"<Directory {new_docroot}>" not in content:
+                file.write(directory_block)
             if "<IfModule mod_rewrite.c>" not in content:
-                file.write(rewrite_rules)
+                file.write(rewrite_block)
 
-        # Enable rewrite module and restart Apache
+        # Enable mod_rewrite and restart Apache
         subprocess.call(["sudo", "a2enmod", "rewrite"])
         subprocess.call(["sudo", "systemctl", "restart", "apache2"])
 
         return {
             "status": "success",
-            "message": f"Apache config updated, mod_rewrite enabled, and Apache restarted."
+            "message": f"Apache config updated: PHP {php_version}, clean URLs, sensitive file protection, rewrite enabled."
         }
 
     except Exception as e:

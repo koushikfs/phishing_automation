@@ -122,48 +122,75 @@ def copy_to_var_www(local_path, target_folder_name):
         }
 
 def update_apache_config(new_docroot):
-    """Update the Apache configuration to point to the phishing site"""
+    """Update Apache configuration with clean URLs, file restrictions, and enable rewrite module."""
     php_version = get_php_version()
-    
+
     if not php_version:
         return {
             "status": "warning",
             "message": "Could not detect PHP version. Skipping PHP config."
         }
-    
+
     try:
-        # Read the existing config
+        # Read existing config
         with open(APACHE_CONF_PATH, 'r') as file:
             lines = file.readlines()
-        
-        # Update the DocumentRoot
+
+        # Update DocumentRoot
         with open(APACHE_CONF_PATH, 'w') as file:
             for line in lines:
                 if line.strip().startswith("DocumentRoot"):
                     file.write(f"    DocumentRoot {new_docroot}\n")
                 else:
                     file.write(line)
-        
-        # Append PHP config if not already present
-        php_config = f"""
+
+        # Config blocks
+        extra_config = f"""
 <IfModule php{php_version}_module>
     AddType application/x-httpd-php .php
     AddHandler application/x-httpd-php .php
     DirectoryIndex index.php index.html
 </IfModule>
+
+<Directory {new_docroot}>
+    Options Indexes FollowSymLinks
+    AllowOverride All
+    Require all granted
+
+    <FilesMatch "\\.(json|txt|env|log|cfg|ini|bak|old|sql)$">
+        Require all denied
+    </FilesMatch>
+</Directory>
 """
-        
+
+        rewrite_rules = """
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ /index.php [L]
+</IfModule>
+"""
+
+        # Append if not already there
         with open(APACHE_CONF_PATH, 'r') as file:
             content = file.read()
-        
-        if f"<IfModule php{php_version}_module>" not in content:
-            with open(APACHE_CONF_PATH, 'a') as file:
-                file.write(php_config)
-        
+
+        with open(APACHE_CONF_PATH, 'a') as file:
+            if f"<IfModule php{php_version}_module>" not in content:
+                file.write(extra_config)
+            if "<IfModule mod_rewrite.c>" not in content:
+                file.write(rewrite_rules)
+
+        # Enable rewrite module and restart Apache
+        subprocess.call(["sudo", "a2enmod", "rewrite"])
+        subprocess.call(["sudo", "systemctl", "restart", "apache2"])
+
         return {
             "status": "success",
-            "message": f"Apache config updated for PHP {php_version} with new DocumentRoot: {new_docroot}"
+            "message": f"Apache config updated, mod_rewrite enabled, and Apache restarted."
         }
+
     except Exception as e:
         return {
             "status": "error",
